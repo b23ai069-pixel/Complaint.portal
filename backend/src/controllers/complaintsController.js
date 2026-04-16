@@ -18,10 +18,7 @@ exports.createComplaint = async (req, res) => {
 
     await complaint.save();
 
-    res.json({
-      success: true,
-      complaint
-    });
+    res.json(complaint);
 
   } catch (err) {
     res.status(500).json({ message: "Error creating complaint" });
@@ -44,7 +41,7 @@ exports.trackComplaint = async (req, res) => {
       return res.status(404).json({ message: "Complaint not found" });
     }
 
-    res.json({ complaint });
+    res.json(complaint);
 
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -87,6 +84,46 @@ exports.getComplaintByTrackingId = async (req, res) => {
       complaints: [complaint]
     });
 
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getUserComplaints = async (req, res) => {
+  try {
+    const complaints = await Complaint.find({ user: req.user._id }).sort({ createdAt: -1 });
+    res.json(complaints);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getAllComplaints = async (req, res) => {
+  try {
+    const complaints = await Complaint.find().populate('user', 'name email').sort({ createdAt: -1 }).lean();
+    const formattedComplaints = complaints.map(c => ({
+      ...c,
+      userId: c.user
+    }));
+    res.json(formattedComplaints);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.updateComplaintStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const complaint = await Complaint.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    ).populate('user', 'name email').lean();
+
+    if (!complaint) return res.status(404).json({ message: "Complaint not found" });
+    
+    complaint.userId = complaint.user;
+    res.json(complaint);
   } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
